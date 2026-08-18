@@ -171,27 +171,42 @@ PAGE = """<!doctype html>
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>App 环境探测器</title>
 <style>
-:root{--brand:{{BRAND}};--bg:#0f172a;--card:#1e293b;--fg:#e2e8f0;--muted:#94a3b8;--ok:#22c55e;--warn:#f59e0b}
+:root{--brand:{{BRAND}};--bg:#0f172a;--card:#1e293b;--fg:#e2e8f0;--muted:#94a3b8;--ok:#22c55e;--warn:#f59e0b;--bd:#334155}
+html[data-theme="light"]{--bg:#f1f5f9;--card:#ffffff;--fg:#0f172a;--muted:#64748b;--ok:#16a34a;--warn:#d97706;--bd:#e2e8f0}
 *{box-sizing:border-box;margin:0;padding:0}
-body{background:var(--bg);color:var(--fg);font:14px/1.6 -apple-system,'PingFang SC',sans-serif;padding:16px;max-width:960px;margin:0 auto}
-h1{font-size:20px;margin:8px 0 4px;display:flex;align-items:center;gap:8px}
+body{background:var(--bg);color:var(--fg);font:14px/1.6 -apple-system,'PingFang SC',sans-serif;padding:16px;max-width:960px;margin:0 auto;transition:background .2s}
+.top{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+h1{font-size:20px;display:flex;align-items:center;gap:8px}
 h1::before{content:'\\1F50D';font-size:18px}
-.sub{color:var(--muted);font-size:12px;margin-bottom:16px}
-.card{background:var(--card);border:1px solid #334155;border-radius:10px;padding:14px;margin-bottom:12px}
+.btn{padding:5px 14px;border:1px solid var(--bd);background:var(--card);color:var(--fg);border-radius:8px;cursor:pointer;font-size:13px}
+.btn:hover{opacity:.85}
+.sub{color:var(--muted);font-size:12px;margin-bottom:4px}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:10px;padding:14px;margin-bottom:12px}
 .card h2{font-size:14px;margin-bottom:10px;color:var(--brand)}
 table{width:100%;border-collapse:collapse;font-size:13px}
-th,td{text-align:left;padding:6px 8px;border-bottom:1px solid #334155;word-break:break-all}
+th,td{text-align:left;padding:6px 8px;border-bottom:1px solid var(--bd);word-break:break-all;vertical-align:top}
 th{color:var(--muted);font-weight:500;width:180px;font-size:12px}
+td.val{max-width:0;width:100%}
+.trunc{display:inline-block;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;vertical-align:bottom}
 .badge{display:inline-block;padding:2px 10px;border-radius:20px;font-size:12px;margin:2px 4px 2px 0}
 .badge.ok{background:#14532d;color:var(--ok)}
 .badge.warn{background:#78350f;color:var(--warn)}
+html[data-theme="light"] .badge.ok{background:#dcfce7}
+html[data-theme="light"] .badge.warn{background:#fef3c7}
 .verdict{color:var(--muted);font-size:13px;margin:4px 0}
-.sug{background:#0f172a;border:1px solid #334155;border-radius:6px;padding:8px 12px;font:12px/1.5 monospace;color:var(--ok);margin-top:6px}
+.sug{background:var(--bg);border:1px solid var(--bd);border-radius:6px;padding:8px 12px;font:12px/1.5 monospace;color:var(--ok);margin-top:6px;overflow-wrap:anywhere}
 .loading{color:var(--muted);padding:12px;text-align:center}
 .sec{color:var(--brand);font-weight:600;margin-bottom:8px}
 .note{color:var(--muted);font-size:12px;margin-top:8px}
+.copybtn{margin-left:8px;font-size:11px;padding:2px 8px}
 </style></head><body>
+<div class="top">
 <h1>App 环境探测器</h1>
+<div>
+<button class="btn" onclick="copyAll()">复制全部</button>
+<button class="btn" onclick="toggleTheme()">日/夜</button>
+</div>
+</div>
 <div class="sub">v{{VER}} · 打开本页的环境，自动展示请求特征并判断是否移动容器</div>
 
 <div class="card">
@@ -200,7 +215,7 @@ th{color:var(--muted);font-weight:500;width:180px;font-size:12px}
 </div>
 
 <div class="card">
-<h2>请求头 (Request Headers)</h2>
+<h2>请求头 (Request Headers) <button class="btn copybtn" onclick="copyHeaders()">复制</button></h2>
 <table id="hdrs"></table>
 </div>
 
@@ -212,36 +227,69 @@ th{color:var(--muted);font-weight:500;width:180px;font-size:12px}
 <div class="note">提示：用飞牛 iOS/Android App 打开本应用，可看到移动容器的真实 Host/UA/转发头，据此配置 dsh 信任域。</div>
 
 <script>
+let DATA=null;
+function toggleTheme(){
+  const cur=document.documentElement.getAttribute('data-theme');
+  document.documentElement.setAttribute('data-theme', cur==='light'?'dark':'light');
+  localStorage.setItem('envprobe-theme', document.documentElement.getAttribute('data-theme'));
+}
+function truncate(v, n){
+  if(!v) return '';
+  const s=String(v);
+  if(s.length<=n) return '<span class="trunc" title="'+s.replace(/"/g,'&quot;')+'">'+s+'</span>';
+  const esc=s.slice(0,n).replace(/&/g,'&amp;').replace(/</g,'&lt;')+'…';
+  return '<span class="trunc" title="'+s.replace(/"/g,'&quot;')+'" onclick="this.textContent=\\''+s.replace(/\\\\/g,'\\\\\\\\').replace(/'/g,'\\\\\\'')+'\\'">'+esc+'</span> <button class="btn copybtn" onclick="copyText(\\''+s.replace(/\\\\/g,'\\\\\\\\').replace(/'/g,'\\\\\\'')+'\\')">复制</button>';
+}
+function copyText(t){ navigator.clipboard.writeText(t).then(()=>flash('已复制')); }
+function flash(msg){ const d=document.createElement('div'); d.textContent=msg; d.style.cssText='position:fixed;top:16px;right:16px;background:var(--ok);color:#fff;padding:6px 14px;border-radius:8px;z-index:99'; document.body.appendChild(d); setTimeout(()=>d.remove(),1200); }
+function copyAll(){
+  if(!DATA) return;
+  const lines=[`环境: ${DATA.env.label}`,`来源IP: ${DATA.client_ip}`];
+  DATA.verdicts.forEach(v=>lines.push(v));
+  lines.push('--- trusted_hosts.conf ---');
+  lines.push(DATA.trusted.join('\\n'));
+  lines.push('--- headers ---');
+  Object.entries(DATA.headers).forEach(([k,v])=>lines.push(`${k}: ${v}`));
+  copyText(lines.join('\\n'));
+}
+function copyHeaders(){
+  if(!DATA) return;
+  const lines=Object.entries(DATA.headers).map(([k,v])=>`${k}: ${v}`);
+  copyText(lines.join('\\n'));
+}
 async function load(){
   try{
-    const r=await fetch('/api/probe'); const d=await r.json();
+    const r=await fetch('/api/probe'); DATA=await r.json();
+    // 主题恢复
+    const t=localStorage.getItem('envprobe-theme'); if(t) document.documentElement.setAttribute('data-theme',t);
     // 环境
     let h='';
-    h+=`<span class="badge ok">${d.env.label}</span>`;
-    if(d.env.mobile_container) h+=`<span class="badge warn">移动容器</span>`;
-    if(d.env.fn_domain) h+=`<span class="badge warn">FN Connect</span>`;
-    h+=`<div class="verdict">来源 IP: <b>${d.client_ip}</b></div>`;
-    d.verdicts.forEach(v=>{h+=`<div class="verdict">${v}</div>`;});
-    h+='<div class="sec" style="margin-top:10px">trusted_hosts.conf 建议</div>';
-    h+='<div class="sug">'+d.trusted.join('\\n')+'</div>';
+    h+=`<span class="badge ok">${DATA.env.label}</span>`;
+    if(DATA.env.mobile_container) h+=`<span class="badge warn">移动容器</span>`;
+    if(DATA.env.fn_domain) h+=`<span class="badge warn">FN Connect</span>`;
+    h+=`<div class="verdict">来源 IP: <b>${DATA.client_ip}</b></div>`;
+    DATA.verdicts.forEach(v=>{h+=`<div class="verdict">${v}</div>`;});
+    if(DATA.env.mobile_url) h+=`<div class="verdict">移动容器地址: <b>${DATA.env.mobile_url}</b></div>`;
+    h+='<div class="sec" style="margin-top:10px">trusted_hosts.conf 建议 <button class="btn copybtn" onclick="copyText(DATA.trusted.join(\\'\\n\\'))">复制</button></div>';
+    h+='<div class="sug">'+DATA.trusted.join('\\n')+'</div>';
     document.getElementById('env').innerHTML=h;
     // 请求头
     let rows='';
-    for(const [k,v] of Object.entries(d.headers)){
-      rows+=`<tr><th>${k}</th><td>${v}</td></tr>`;
+    for(const [k,v] of Object.entries(DATA.headers)){
+      rows+=`<tr><th>${k}</th><td class="val">${truncate(v,120)}</td></tr>`;
     }
     document.getElementById('hdrs').innerHTML=rows||'<tr><td colspan="2">无</td></tr>';
     // 容器
     let c='';
-    if(d.containers.ok){
-      c+=`<div class="verdict">共 <b>${d.containers.count}</b> 个容器</div>`;
+    if(DATA.containers.ok){
+      c+=`<div class="verdict">共 <b>${DATA.containers.count}</b> 个容器</div>`;
       c+='<table><tr><th>名称</th><th>镜像</th><th>状态</th><th>端口</th></tr>';
-      d.containers.containers.forEach(x=>{
+      DATA.containers.containers.forEach(x=>{
         c+=`<tr><td>${x.name}</td><td>${x.image}</td><td>${x.status}</td><td>${x.ports}</td></tr>`;
       });
       c+='</table>';
     }else{
-      c+=`<div class="verdict">${d.containers.error||'获取失败'}</div>`;
+      c+=`<div class="verdict">${DATA.containers.error||'获取失败'}</div>`;
     }
     document.getElementById('ctr').innerHTML=c;
   }catch(e){
