@@ -10,5 +10,7 @@ echo "[$(date '+%F %T')] install_callback start" >> "${LOG}"
 # 权限: server.py 需可执行
 chmod +x "${APP_DIR}/server.py" 2>/dev/null || true
 chmod +x "${APP_DIR}/cmd/main" 2>/dev/null || true
+# 数据目录属主交给包用户 (fnOS run-as package), 否则服务以包用户启动时无法写 pid/log
+chown -R "${APP_NAME}:${APP_NAME}" "${DATA_DIR}" 2>/dev/null || true
 echo "[$(date '+%F %T')] install_callback done" >> "${LOG}"
 exit 0
