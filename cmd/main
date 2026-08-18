@@ -29,7 +29,7 @@ start() {
         log "ERROR: server.py not found at ${SERVER_PY}"
         return 1
     fi
-    ENV_PROBE_PORT="${PORT}" ENV_PROBE_VERSION="0.1.1" \
+    ENV_PROBE_PORT="${PORT}" ENV_PROBE_VERSION="0.1.2" \
         nohup python3 "${SERVER_PY}" >> "${LOG}" 2>&1 &
     echo $! > "${PID_FILE}"
     log "server started (pid $(cat "${PID_FILE}")) :0.0.0.0:${PORT}"

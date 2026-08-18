@@ -21,7 +21,7 @@ import subprocess
 import urllib.parse
 
 PORT = int(os.environ.get("ENV_PROBE_PORT", "28002"))
-APP_VERSION = os.environ.get("ENV_PROBE_VERSION", "0.1.1")
+APP_VERSION = os.environ.get("ENV_PROBE_VERSION", "0.1.2")
 
 BRAND = "#22c55e"  # 绿色主题
 
@@ -183,6 +183,12 @@ html[data-theme="dark"] .badge.warn{background:#78350f;color:var(--warn)}
 .sec{color:var(--brand);font-weight:600;margin-bottom:8px}
 .note{color:var(--muted);font-size:12px;margin-top:8px}
 .copybtn{margin-left:8px;font-size:11px;padding:2px 8px}
+.tabs{display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap;border-bottom:1px solid var(--bd);padding-bottom:8px}
+.tab{padding:6px 14px;border:1px solid var(--bd);background:var(--card);color:var(--muted);border-radius:8px;cursor:pointer;font-size:13px}
+.tab:hover{color:var(--fg)}
+.tab.active{background:var(--brand);color:#fff;border-color:var(--brand)}
+.pane{display:none}
+.pane.active{display:block}
 *{box-sizing:border-box;margin:0;padding:0}
 body{background:var(--bg);color:var(--fg);font:14px/1.6 -apple-system,'PingFang SC',sans-serif;padding:16px;max-width:960px;margin:0 auto;transition:background .2s}
 .top{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
@@ -209,25 +215,42 @@ td.val{word-break:break-all;max-width:0;width:100%}
 </div>
 <div class="sub">v{{VER}} · 打开本页的环境，自动展示请求特征并判断是否移动容器</div>
 
-<div class="card">
-<h2>当前访问环境</h2>
-<div id="env"></div>
+<div class="tabs">
+<button class="tab active" onclick="switchTab('env')">环境</button>
+<button class="tab" onclick="switchTab('hdrs')">请求头</button>
+<button class="tab" onclick="switchTab('store')">存储</button>
+<button class="tab" onclick="switchTab('auth')">登录通道</button>
+<button class="tab" onclick="switchTab('ctr')">容器</button>
 </div>
 
-<div class="card">
-<h2>请求头 (Request Headers) <button class="btn copybtn" onclick="copyHeaders()">复制</button></h2>
-<table id="hdrs"></table>
+<div class="pane active" id="pane-env">
+<div class="card"><h2>当前访问环境</h2><div id="env"></div></div>
 </div>
 
-<div class="card">
-<h2>容器信息 (Docker)</h2>
-<div id="ctr"></div>
+<div class="pane" id="pane-hdrs">
+<div class="card"><h2>请求头 (Request Headers) <button class="btn copybtn" onclick="copyHeaders()">复制</button></h2><table id="hdrs"></table></div>
+</div>
+
+<div class="pane" id="pane-store">
+<div class="card"><h2>本地持久化存储</h2><div id="store"></div></div>
+</div>
+
+<div class="pane" id="pane-auth">
+<div class="card"><h2>登录验证通道 <button class="btn copybtn" onclick="authProbe()">重测</button></h2><div id="auth"></div></div>
+</div>
+
+<div class="pane" id="pane-ctr">
+<div class="card"><h2>容器信息 (Docker)</h2><div id="ctr"></div></div>
 </div>
 
 <div class="note">提示：用飞牛 iOS/Android App 打开本应用，可看到移动容器的真实 Host/UA/转发头，据此配置 dsh 信任域。</div>
 
 <script>
 let DATA=null;
+function switchTab(name){
+  document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active', t.getAttribute('onclick').indexOf(name)>=0));
+  document.querySelectorAll('.pane').forEach(p=>p.classList.toggle('active', p.id==='pane-'+name));
+}
 function applyTheme(t){
   document.documentElement.setAttribute('data-theme', t);
   const btn=document.getElementById('themeBtn');
@@ -261,6 +284,38 @@ function copyHeaders(){
   if(!DATA) return;
   const lines=Object.entries(DATA.headers).map(([k,v])=>`${k}: ${v}`);
   copyText(lines.join('\\n'));
+}
+function storageProbe(){
+  const el=document.getElementById('store');
+  if(!el) return;
+  const out=[];
+  const mark=(name,ok,detail)=>{ out.push(`<span class="badge ${ok?'ok':'warn'}">${name}: ${ok?'可用':'不可用'}</span>${detail?' <span class="verdict" style="display:inline">'+detail+'</span>':''}`); };
+  // localStorage
+  try{ localStorage.setItem('__ep_t','1'); mark('localStorage', localStorage.getItem('__ep_t')==='1'); localStorage.removeItem('__ep_t'); }
+  catch(e){ mark('localStorage', false, String(e)); }
+  // sessionStorage
+  try{ sessionStorage.setItem('__ep_t','1'); mark('sessionStorage', sessionStorage.getItem('__ep_t')==='1'); sessionStorage.removeItem('__ep_t'); }
+  catch(e){ mark('sessionStorage', false, String(e)); }
+  // cookie
+  try{ document.cookie='__ep_t=1;path=/'; mark('Cookie', document.cookie.indexOf('__ep_t=1')>=0); document.cookie='__ep_t=;path=/;max-age=0'; }
+  catch(e){ mark('Cookie', false, String(e)); }
+  el.innerHTML = out.join('<br>') || '<div class="verdict">无结果</div>';
+}
+async function authProbe(){
+  const el=document.getElementById('auth');
+  if(!el) return;
+  el.innerHTML='<div class="loading">测试跳转链路中...</div>';
+  try{
+    const r=await fetch('/api/redirect-probe', {redirect:'follow'});
+    const t=await r.json();
+    const ok = r.ok && t && t.ok;
+    el.innerHTML =
+      `<span class="badge ${ok?'ok':'warn'}">跳转通道: ${ok?'正常':'异常'}</span>`+
+      `<div class="verdict">HTTP ${r.status} · 302 重定向已${r.redirected?'跟随':'未跟随'} · ${t.msg||''}</div>`+
+      (ok?'':'<div class="verdict" style="color:var(--warn)">若此处异常, 登录后跳转可能失败 (类似 9Router 无法登录跳转)</div>');
+  }catch(e){
+    el.innerHTML=`<span class="badge warn">跳转通道: 异常</span><div class="verdict">${String(e)}</div><div class="verdict" style="color:var(--warn)">webview 可能拦截了重定向, 登录跳转会失败</div>`;
+  }
 }
 async function load(){
   try{
@@ -298,6 +353,9 @@ async function load(){
       c+=`<div class="verdict">${DATA.containers.error||'获取失败'}</div>`;
     }
     document.getElementById('ctr').innerHTML=c;
+    // 本地持久化存储 + 登录验证通道探测
+    storageProbe();
+    authProbe();
   }catch(e){
     document.getElementById('env').innerHTML='<div class="verdict">加载失败: '+e+'</div>';
   }
@@ -347,6 +405,15 @@ class Handler(http.server.BaseHTTPRequestHandler):
             self.wfile.write(body)
         elif path == "/api/probe":
             self._json(self._probe())
+        elif path == "/api/redirect-probe":
+            # 登录验证通道探测: 302 跳转测试 (模拟登录跳转链路)
+            # 前端 fetch follow 后 redirected=true 说明跳转通道正常 (webview 不拦截)
+            self.send_response(302)
+            self.send_header("Location", "/api/redirect-ok")
+            self.send_header("Content-Length", "0")
+            self.end_headers()
+        elif path == "/api/redirect-ok":
+            self._json({"ok": True, "redirected": "yes", "msg": "登录跳转通道正常 (302 重定向可跟随)"})
         elif path == "/health":
             self._json({"ok": True, "version": APP_VERSION})
         else:
