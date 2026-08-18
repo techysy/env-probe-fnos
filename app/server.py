@@ -194,9 +194,9 @@ h1::before{content:'\1F50D';font-size:18px}
 .card{background:var(--card);border:1px solid var(--bd);border-radius:10px;padding:14px;margin-bottom:12px}
 .card h2{font-size:14px;margin-bottom:10px;color:var(--brand)}
 table{width:100%;border-collapse:collapse;font-size:13px}
-th,td{text-align:left;padding:6px 8px;border-bottom:1px solid var(--bd);word-break:break-all;vertical-align:top}
-th{color:var(--muted);font-weight:500;width:180px;font-size:12px}
-td.val{max-width:0;width:100%}
+th,td{text-align:left;padding:6px 10px;border-bottom:1px solid var(--bd);vertical-align:top}
+th{color:var(--muted);font-weight:500;font-size:12px;white-space:nowrap;width:auto;min-width:120px}
+td.val{word-break:break-all;max-width:0;width:100%}
 .trunc{display:inline-block;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;vertical-align:bottom}
 .badge{display:inline-block;padding:2px 10px;border-radius:20px;font-size:12px;margin:2px 4px 2px 0}
 </style></head><body>
@@ -289,7 +289,7 @@ async function load(){
     let c='';
     if(DATA.containers.ok){
       c+=`<div class="verdict">共 <b>${DATA.containers.count}</b> 个容器</div>`;
-      c+='<table><tr><th>名称</th><th>镜像</th><th>状态</th><th>端口</th></tr>';
+      c+='<table style="word-break:break-all"><tr><th>名称</th><th>镜像</th><th>状态</th><th>端口</th></tr>';
       DATA.containers.containers.forEach(x=>{
         c+=`<tr><td>${x.name}</td><td>${x.image}</td><td>${x.status}</td><td>${x.ports}</td></tr>`;
       });
