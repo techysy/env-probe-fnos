@@ -21,7 +21,7 @@ import subprocess
 import urllib.parse
 
 PORT = int(os.environ.get("ENV_PROBE_PORT", "28002"))
-APP_VERSION = os.environ.get("ENV_PROBE_VERSION", "0.1.0")
+APP_VERSION = os.environ.get("ENV_PROBE_VERSION", "0.1.1")
 
 BRAND = "#22c55e"  # 绿色主题
 
@@ -187,7 +187,7 @@ html[data-theme="dark"] .badge.warn{background:#78350f;color:var(--warn)}
 body{background:var(--bg);color:var(--fg);font:14px/1.6 -apple-system,'PingFang SC',sans-serif;padding:16px;max-width:960px;margin:0 auto;transition:background .2s}
 .top{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
 h1{font-size:20px;display:flex;align-items:center;gap:8px}
-h1::before{content:'\1F50D';font-size:18px}
+h1::before{content:'🔍';font-size:18px}
 .btn{padding:5px 14px;border:1px solid var(--bd);background:var(--card);color:var(--fg);border-radius:8px;cursor:pointer;font-size:13px}
 .btn:hover{opacity:.85}
 .sub{color:var(--muted);font-size:12px;margin-bottom:4px}
