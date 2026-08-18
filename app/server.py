@@ -171,13 +171,23 @@ PAGE = """<!doctype html>
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>App 环境探测器</title>
 <style>
-:root{--brand:{{BRAND}};--bg:#0f172a;--card:#1e293b;--fg:#e2e8f0;--muted:#94a3b8;--ok:#22c55e;--warn:#f59e0b;--bd:#334155}
-html[data-theme="light"]{--bg:#f1f5f9;--card:#ffffff;--fg:#0f172a;--muted:#64748b;--ok:#16a34a;--warn:#d97706;--bd:#e2e8f0}
+:root{--brand:{{BRAND}};--bg:#f1f5f9;--card:#ffffff;--fg:#0f172a;--muted:#64748b;--ok:#16a34a;--warn:#d97706;--bd:#e2e8f0}
+html[data-theme="dark"]{--bg:#0f172a;--card:#1e293b;--fg:#e2e8f0;--muted:#94a3b8;--ok:#22c55e;--warn:#f59e0b;--bd:#334155}
+.badge.ok{background:#dcfce7;color:var(--ok)}
+.badge.warn{background:#fef3c7;color:var(--warn)}
+html[data-theme="dark"] .badge.ok{background:#14532d;color:var(--ok)}
+html[data-theme="dark"] .badge.warn{background:#78350f;color:var(--warn)}
+.verdict{color:var(--muted);font-size:13px;margin:4px 0}
+.sug{background:var(--bg);border:1px solid var(--bd);border-radius:6px;padding:8px 12px;font:12px/1.5 monospace;color:var(--ok);margin-top:6px;overflow-wrap:anywhere}
+.loading{color:var(--muted);padding:12px;text-align:center}
+.sec{color:var(--brand);font-weight:600;margin-bottom:8px}
+.note{color:var(--muted);font-size:12px;margin-top:8px}
+.copybtn{margin-left:8px;font-size:11px;padding:2px 8px}
 *{box-sizing:border-box;margin:0;padding:0}
 body{background:var(--bg);color:var(--fg);font:14px/1.6 -apple-system,'PingFang SC',sans-serif;padding:16px;max-width:960px;margin:0 auto;transition:background .2s}
 .top{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
 h1{font-size:20px;display:flex;align-items:center;gap:8px}
-h1::before{content:'\\1F50D';font-size:18px}
+h1::before{content:'\1F50D';font-size:18px}
 .btn{padding:5px 14px;border:1px solid var(--bd);background:var(--card);color:var(--fg);border-radius:8px;cursor:pointer;font-size:13px}
 .btn:hover{opacity:.85}
 .sub{color:var(--muted);font-size:12px;margin-bottom:4px}
@@ -189,22 +199,12 @@ th{color:var(--muted);font-weight:500;width:180px;font-size:12px}
 td.val{max-width:0;width:100%}
 .trunc{display:inline-block;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;vertical-align:bottom}
 .badge{display:inline-block;padding:2px 10px;border-radius:20px;font-size:12px;margin:2px 4px 2px 0}
-.badge.ok{background:#14532d;color:var(--ok)}
-.badge.warn{background:#78350f;color:var(--warn)}
-html[data-theme="light"] .badge.ok{background:#dcfce7}
-html[data-theme="light"] .badge.warn{background:#fef3c7}
-.verdict{color:var(--muted);font-size:13px;margin:4px 0}
-.sug{background:var(--bg);border:1px solid var(--bd);border-radius:6px;padding:8px 12px;font:12px/1.5 monospace;color:var(--ok);margin-top:6px;overflow-wrap:anywhere}
-.loading{color:var(--muted);padding:12px;text-align:center}
-.sec{color:var(--brand);font-weight:600;margin-bottom:8px}
-.note{color:var(--muted);font-size:12px;margin-top:8px}
-.copybtn{margin-left:8px;font-size:11px;padding:2px 8px}
 </style></head><body>
 <div class="top">
 <h1>App 环境探测器</h1>
 <div>
 <button class="btn" onclick="copyAll()">复制全部</button>
-<button class="btn" onclick="toggleTheme()">日/夜</button>
+<button class="btn" id="themeBtn" onclick="toggleTheme()">🌙</button>
 </div>
 </div>
 <div class="sub">v{{VER}} · 打开本页的环境，自动展示请求特征并判断是否移动容器</div>
@@ -228,10 +228,15 @@ html[data-theme="light"] .badge.warn{background:#fef3c7}
 
 <script>
 let DATA=null;
+function applyTheme(t){
+  document.documentElement.setAttribute('data-theme', t);
+  const btn=document.getElementById('themeBtn');
+  if(btn) btn.textContent = t==='dark' ? '☀️' : '🌙';  // 当前模式, 点击切换
+  localStorage.setItem('envprobe-theme', t);
+}
 function toggleTheme(){
   const cur=document.documentElement.getAttribute('data-theme');
-  document.documentElement.setAttribute('data-theme', cur==='light'?'dark':'light');
-  localStorage.setItem('envprobe-theme', document.documentElement.getAttribute('data-theme'));
+  applyTheme(cur==='dark' ? 'light' : 'dark');
 }
 function truncate(v, n){
   if(!v) return '';
@@ -260,8 +265,9 @@ function copyHeaders(){
 async function load(){
   try{
     const r=await fetch('/api/probe'); DATA=await r.json();
-    // 主题恢复
-    const t=localStorage.getItem('envprobe-theme'); if(t) document.documentElement.setAttribute('data-theme',t);
+    // 主题恢复 (默认日)
+    const t=localStorage.getItem('envprobe-theme')||'light';
+    applyTheme(t);
     // 环境
     let h='';
     h+=`<span class="badge ok">${DATA.env.label}</span>`;
