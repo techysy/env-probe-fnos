@@ -21,7 +21,7 @@ import subprocess
 import urllib.parse
 
 PORT = int(os.environ.get("ENV_PROBE_PORT", "28002"))
-APP_VERSION = os.environ.get("ENV_PROBE_VERSION", "0.1.5")
+APP_VERSION = os.environ.get("ENV_PROBE_VERSION", "0.1.6")
 
 BRAND = "#22c55e"  # 绿色主题
 
@@ -326,7 +326,21 @@ function truncate(v, n){
   const esc=s.slice(0,n).replace(/&/g,'&amp;').replace(/</g,'&lt;')+'…';
   return '<span class="trunc" title="'+s.replace(/"/g,'&quot;')+'" onclick="this.textContent=\\''+s.replace(/\\\\/g,'\\\\\\\\').replace(/'/g,'\\\\\\'')+'\\'">'+esc+'</span> <button class="btn copybtn" onclick="copyText(\\''+s.replace(/\\\\/g,'\\\\\\\\').replace(/'/g,'\\\\\\'')+'\\')">复制</button>';
 }
-function copyText(t){ navigator.clipboard.writeText(t).then(()=>flash('已复制')); }
+function copyText(t){
+  if(navigator.clipboard && window.isSecureContext){
+    navigator.clipboard.writeText(t).then(()=>flash('已复制')).catch(()=>legacyCopy(t));
+  }else{
+    legacyCopy(t);
+  }
+}
+function legacyCopy(t){
+  const ta=document.createElement('textarea');
+  ta.value=t; ta.style.cssText='position:fixed;opacity:0;top:0;left:0;pointer-events:none';
+  document.body.appendChild(ta); ta.focus(); ta.select();
+  try{ document.execCommand('copy'); flash('已复制'); }
+  catch(e){ flash('复制失败，请长按选择文本'); }
+  document.body.removeChild(ta);
+}
 function flash(msg){ const d=document.createElement('div'); d.textContent=msg; d.style.cssText='position:fixed;top:16px;right:16px;background:var(--ok);color:#fff;padding:6px 14px;border-radius:8px;z-index:99'; document.body.appendChild(d); setTimeout(()=>d.remove(),1200); }
 function copyAll(){
   if(!DATA) return;

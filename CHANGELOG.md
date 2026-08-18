@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.1.6] - 2026-08-19
+
+- **修复**: 复制按钮无反应（移动容器/HTTP 非安全上下文 `navigator.clipboard` 不可用 → 降级 `execCommand('copy')`）
+
 ## [0.1.5] - 2026-08-19
 
 - **修复**: 页面响应加 `Cache-Control: no-cache`，避免浏览器/webview 缓存旧 JS 导致 `Can't find variable: dnsProbe` 等加载报错
