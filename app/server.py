@@ -21,7 +21,7 @@ import subprocess
 import urllib.parse
 
 PORT = int(os.environ.get("ENV_PROBE_PORT", "28002"))
-APP_VERSION = os.environ.get("ENV_PROBE_VERSION", "0.1.2")
+APP_VERSION = os.environ.get("ENV_PROBE_VERSION", "0.1.3")
 
 BRAND = "#22c55e"  # 绿色主题
 
@@ -166,6 +166,65 @@ def get_containers():
         return {"ok": False, "error": str(e)}
 
 # ── HTTP 服务 ─────────────────────────────────────────────
+# 连通性探测: TCP 连通性 + 延迟 (101 到各目标)
+def probe_connectivity():
+    import socket
+    import time
+    targets = [
+        ("dsh", "127.0.0.1", 28000),
+        ("9Router", "127.0.0.1", 20128),
+        ("mihomo", "127.0.0.1", 9090),
+        ("GitHub API", "api.github.com", 443),
+        ("DeepSeek API", "api.deepseek.com", 443),
+        ("FN Connect", "fnos.net", 443),
+    ]
+    results = []
+    for name, host, port in targets:
+        t0 = time.time()
+        try:
+            with socket.create_connection((host, port), timeout=3):
+                ms = int((time.time() - t0) * 1000)
+                results.append({"name": name, "host": host, "port": port, "ok": True, "ms": ms})
+        except Exception as e:
+            results.append({"name": name, "host": host, "port": port, "ok": False, "ms": None,
+                            "err": str(e)[:50]})
+    return results
+
+# DNS 解析: 当前访问域名解析到哪些 IP
+def resolve_dns(host):
+    import socket
+    hostname = (host or "").split(":")[0]
+    if not hostname:
+        return {"host": host or "", "error": "empty host"}
+    try:
+        infos = socket.getaddrinfo(hostname, None, socket.AF_INET)
+        ips = sorted(set(i[4][0] for i in infos))
+        return {"host": hostname, "ips": ips, "count": len(ips)}
+    except Exception as e:
+        return {"host": hostname, "error": str(e)}
+
+# 历史快照: 每次探测保存到 DATA_DIR/history.jsonl
+def save_history(entry):
+    import json as _json
+    try:
+        os.makedirs(DATA_DIR, exist_ok=True)
+        hist_path = os.path.join(DATA_DIR, "history.jsonl")
+        with open(hist_path, "a", encoding="utf-8") as f:
+            f.write(_json.dumps(entry, ensure_ascii=False) + "\n")
+    except Exception:
+        pass
+
+def load_history(limit=20):
+    import json as _json
+    try:
+        hist_path = os.path.join(DATA_DIR, "history.jsonl")
+        if not os.path.isfile(hist_path):
+            return []
+        lines = open(hist_path, encoding="utf-8").read().strip().splitlines()
+        return [_json.loads(x) for x in lines[-limit:]][::-1]
+    except Exception:
+        return []
+
 PAGE = """<!doctype html>
 <html lang="zh-CN"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
@@ -220,7 +279,10 @@ td.val{word-break:break-all;max-width:0;width:100%}
 <button class="tab" onclick="switchTab('hdrs')">请求头</button>
 <button class="tab" onclick="switchTab('store')">存储</button>
 <button class="tab" onclick="switchTab('auth')">登录通道</button>
+<button class="tab" onclick="switchTab('conn')">连通性</button>
+<button class="tab" onclick="switchTab('dns')">DNS·协议</button>
 <button class="tab" onclick="switchTab('ctr')">容器</button>
+<button class="tab" onclick="switchTab('hist')">历史</button>
 </div>
 
 <div class="pane active" id="pane-env">
@@ -239,8 +301,20 @@ td.val{word-break:break-all;max-width:0;width:100%}
 <div class="card"><h2>登录验证通道 <button class="btn copybtn" onclick="authProbe()">重测</button></h2><div id="auth"></div></div>
 </div>
 
+<div class="pane" id="pane-conn">
+<div class="card"><h2>服务/连通性探测 <button class="btn copybtn" onclick="connectivityProbe()">重测</button></h2><div id="conn"></div></div>
+</div>
+
+<div class="pane" id="pane-dns">
+<div class="card"><h2>DNS 解析与协议</h2><div id="dns"></div></div>
+</div>
+
 <div class="pane" id="pane-ctr">
 <div class="card"><h2>容器信息 (Docker)</h2><div id="ctr"></div></div>
+</div>
+
+<div class="pane" id="pane-hist">
+<div class="card"><h2>历史快照</h2><div id="hist"></div></div>
 </div>
 
 <div class="note">提示：用飞牛 iOS/Android App 打开本应用，可看到移动容器的真实 Host/UA/转发头，据此配置 dsh 信任域。</div>
@@ -315,7 +389,72 @@ async function authProbe(){
       (ok?'':'<div class="verdict" style="color:var(--warn)">若此处异常, 登录后跳转可能失败 (类似 9Router 无法登录跳转)</div>');
   }catch(e){
     el.innerHTML=`<span class="badge warn">跳转通道: 异常</span><div class="verdict">${String(e)}</div><div class="verdict" style="color:var(--warn)">webview 可能拦截了重定向, 登录跳转会失败</div>`;
+}
+async function connectivityProbe(){
+  const el=document.getElementById('conn');
+  if(!el) return;
+  el.innerHTML='<div class="loading">探测中...</div>';
+  try{
+    const r=await fetch('/api/connectivity'); const d=await r.json();
+    let h=`<div class="verdict">探测时间: ${d.ts} (101 到各目标)</div><table style="word-break:break-all"><tr><th>目标</th><th>地址</th><th>状态</th><th>延迟</th></tr>`;
+    d.results.forEach(x=>{
+      h+=`<tr><td>${x.name}</td><td>${x.host}:${x.port}</td><td><span class="badge ${x.ok?'ok':'warn'}">${x.ok?'可达':'不可达'}</span></td><td>${x.ok?x.ms+' ms':(x.err||'')}</td></tr>`;
+    });
+    h+='</table>';
+    el.innerHTML=h;
+  }catch(e){ el.innerHTML=`<div class="verdict">探测失败: ${e}</div>`; }
+}
+function dnsProbe(){
+  const el=document.getElementById('dns');
+  if(!el) return;
+  let h='';
+  const dns=DATA.dns||{};
+  h+=`<div class="verdict">当前域名: <b>${dns.host||'-'}</b></div>`;
+  if(dns.ips){
+    h+='<div class="verdict">解析 IP ('+dns.count+' 个):</div>';
+    h+=dns.ips.map(ip=>`<div class="sug">${ip}</div>`).join('');
+  }else if(dns.error){
+    h+=`<div class="verdict">解析失败: ${dns.error}</div>`;
   }
+  // 协议 / iframe / WebSocket
+  const inFrame = window.self !== window.top;
+  const proto = location.protocol;
+  h+=`<div class="sec" style="margin-top:10px">协议与运行环境</div>`;
+  h+=`<div class="verdict">协议: <b>${proto}</b> (${proto==='https:'?'HTTPS 加密':'HTTP 明文'})</div>`;
+  h+=`<div class="verdict">iframe 内嵌: <span class="badge ${inFrame?'warn':'ok'}">${inFrame?'是 (被嵌入)':'否 (独立窗口)'}</span></div>`;
+  h+=`<div class="verdict">WebSocket: <span id="wsBadge" class="badge warn">检测中...</span></div>`;
+  el.innerHTML=h;
+  // WebSocket 检测
+  try{
+    const wsUrl=(proto==='https:'?'wss://':'ws://')+location.host;
+    const ws=new WebSocket(wsUrl);
+    ws.onopen=()=>{ document.getElementById('wsBadge').textContent='可用'; document.getElementById('wsBadge').className='badge ok'; ws.close(); };
+    ws.onerror=()=>{ document.getElementById('wsBadge').textContent='不可用 (可能被拦截)'; document.getElementById('wsBadge').className='badge warn'; };
+    setTimeout(()=>{ if(ws.readyState!==1 && ws.readyState!==3){ ws.close(); } }, 3000);
+  }catch(e){
+    document.getElementById('wsBadge').textContent='不可用: '+e;
+  }
+}
+async function loadHistory(){
+  const el=document.getElementById('hist');
+  if(!el) return;
+  try{
+    const r=await fetch('/api/history'); const d=await r.json();
+    if(!d.history || d.history.length===0){
+      el.innerHTML='<div class="verdict">暂无历史记录（每次打开本页自动记录一条）</div>';
+      return;
+    }
+    let h='<table><tr><th>时间</th><th>Host</th><th>来源IP</th><th>环境</th><th>标记</th></tr>';
+    d.history.forEach(x=>{
+      const marks=[];
+      if(x.mobile) marks.push('<span class="badge warn">移动</span>');
+      if(x.fn_domain) marks.push('<span class="badge warn">FN</span>');
+      h+=`<tr><td>${x.ts}</td><td>${x.host}</td><td>${x.ip}</td><td>${x.env}</td><td>${marks.join('')||'-'}</td></tr>`;
+    });
+    h+='</table>';
+    el.innerHTML=h;
+  }catch(e){ el.innerHTML=`<div class="verdict">加载失败: ${e}</div>`; }
+}
 }
 async function load(){
   try{
@@ -353,9 +492,12 @@ async function load(){
       c+=`<div class="verdict">${DATA.containers.error||'获取失败'}</div>`;
     }
     document.getElementById('ctr').innerHTML=c;
-    // 本地持久化存储 + 登录验证通道探测
+    // 本地持久化存储 + 登录验证通道 + 连通性 + DNS/协议 + 历史
     storageProbe();
     authProbe();
+    dnsProbe();
+    loadHistory();
+    connectivityProbe();
   }catch(e){
     document.getElementById('env').innerHTML='<div class="verdict">加载失败: '+e+'</div>';
   }
@@ -384,6 +526,13 @@ class Handler(http.server.BaseHTTPRequestHandler):
         env, verdicts = detect_environment(headers, host, client_ip)
         trusted = suggest_trusted(host)
         containers = get_containers()
+        dns = resolve_dns(host)
+        # 保存历史快照
+        save_history({
+            "ts": __import__("time").strftime("%F %T"),
+            "host": host, "ip": client_ip, "env": env["label"],
+            "mobile": env["mobile_container"], "fn_domain": env["fn_domain"],
+        })
         return {
             "headers": headers,
             "client_ip": client_ip,
@@ -391,6 +540,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
             "verdicts": verdicts,
             "trusted": trusted,
             "containers": containers,
+            "dns": dns,
             "server": {"lan_ip": LAN_IP, "hostname": socket.gethostname(), "version": APP_VERSION},
         }
 
@@ -414,6 +564,10 @@ class Handler(http.server.BaseHTTPRequestHandler):
             self.end_headers()
         elif path == "/api/redirect-ok":
             self._json({"ok": True, "redirected": "yes", "msg": "登录跳转通道正常 (302 重定向可跟随)"})
+        elif path == "/api/connectivity":
+            self._json({"ok": True, "results": probe_connectivity(), "ts": __import__("time").strftime("%F %T")})
+        elif path == "/api/history":
+            self._json({"ok": True, "history": load_history()})
         elif path == "/health":
             self._json({"ok": True, "version": APP_VERSION})
         else:

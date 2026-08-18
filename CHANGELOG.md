@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.1.3] - 2026-08-19
+
+- **新增**: 服务/连通性探测（dsh/9Router/mihomo/GitHub/DeepSeek/FN Connect TCP 可达性 + 延迟）
+- **新增**: DNS 解析详情（当前域名解析 IP 列表）
+- **新增**: 协议与运行环境（HTTPS/HTTP、iframe 内嵌检测、WebSocket 可用性）
+- **新增**: 历史快照（每次打开自动记录环境信息，可对比不同访问方式）
+- **优化**: 标签页新增「连通性 / DNS·协议 / 历史」
+
 ## [0.1.2] - 2026-08-19
 
 - **新增**: 本地持久化存储探测（localStorage / sessionStorage / Cookie 读写测试）
