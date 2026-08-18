@@ -277,7 +277,6 @@ td.val{word-break:break-all;max-width:0;width:100%}
 <div class="tabs">
 <button class="tab active" onclick="switchTab('env')">环境</button>
 <button class="tab" onclick="switchTab('hdrs')">请求头</button>
-<button class="tab" onclick="switchTab('store')">存储</button>
 <button class="tab" onclick="switchTab('auth')">登录通道</button>
 <button class="tab" onclick="switchTab('conn')">连通性</button>
 <button class="tab" onclick="switchTab('dns')">DNS·协议</button>
@@ -287,14 +286,11 @@ td.val{word-break:break-all;max-width:0;width:100%}
 
 <div class="pane active" id="pane-env">
 <div class="card"><h2>当前访问环境</h2><div id="env"></div></div>
+<div class="card"><h2>本地持久化存储</h2><div id="store"></div></div>
 </div>
 
 <div class="pane" id="pane-hdrs">
 <div class="card"><h2>请求头 (Request Headers) <button class="btn copybtn" onclick="copyHeaders()">复制</button></h2><table id="hdrs"></table></div>
-</div>
-
-<div class="pane" id="pane-store">
-<div class="card"><h2>本地持久化存储</h2><div id="store"></div></div>
 </div>
 
 <div class="pane" id="pane-auth">
