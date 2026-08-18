@@ -1,0 +1,76 @@
+#!/bin/bash
+# env-probe — 环境探测器生命周期脚本
+# 运行 app/server.py (Python 零依赖), 监听 28002.
+# v0.1.0
+set -uo pipefail
+
+APP_NAME="${TRIM_APPNAME:-env-probe}"
+APP_DIR="${TRIM_APPDEST:-/var/apps/${APP_NAME}}"
+DATA_DIR="${TRIM_PKGVAR:-/vol4/@appdata/${APP_NAME}}"
+SERVER_PY="${APP_DIR}/server.py"
+PORT="${ENV_PROBE_PORT:-28002}"
+LOG="${DATA_DIR}/app.log"
+PID_FILE="${DATA_DIR}/server.pid"
+
+# 兼容 fnOS 各种 TRIM_APPDEST: 实际文件可能在 APP_DIR 或其 target 子目录
+if [ ! -f "${SERVER_PY}" ] && [ -f "${APP_DIR}/target/server.py" ]; then
+    SERVER_PY="${APP_DIR}/target/server.py"
+fi
+mkdir -p "${DATA_DIR}" 2>/dev/null || true
+log() { echo "[$(date '+%F %T')] $*" >> "${LOG}" 2>/dev/null || true; }
+
+start() {
+    mkdir -p "${DATA_DIR}"
+    if [ -f "${PID_FILE}" ] && kill -0 "$(cat "${PID_FILE}")" 2>/dev/null; then
+        log "already running (pid $(cat "${PID_FILE}"))"
+        return 0
+    fi
+    if [ ! -f "${SERVER_PY}" ]; then
+        log "ERROR: server.py not found at ${SERVER_PY}"
+        return 1
+    fi
+    ENV_PROBE_PORT="${PORT}" ENV_PROBE_VERSION="0.1.0" \
+        nohup python3 "${SERVER_PY}" >> "${LOG}" 2>&1 &
+    echo $! > "${PID_FILE}"
+    log "server started (pid $(cat "${PID_FILE}")) :0.0.0.0:${PORT}"
+    sleep 1
+    # 健康检查
+    if kill -0 "$(cat "${PID_FILE}")" 2>/dev/null; then
+        log "health OK"
+        return 0
+    else
+        log "server failed to start"
+        return 1
+    fi
+}
+
+stop() {
+    if [ -f "${PID_FILE}" ]; then
+        kill "$(cat "${PID_FILE}")" 2>/dev/null
+        sleep 1
+        kill -9 "$(cat "${PID_FILE}")" 2>/dev/null || true
+        rm -f "${PID_FILE}"
+        log "stopped"
+    fi
+    # 兜底: 清理残留进程
+    pkill -f "server.py" 2>/dev/null || true
+    return 0
+}
+
+status() {
+    if [ -f "${PID_FILE}" ] && kill -0 "$(cat "${PID_FILE}")" 2>/dev/null; then
+        echo "running (pid $(cat "${PID_FILE}"))"
+        return 0
+    fi
+    echo "stopped"
+    return 1
+}
+
+case "${1:-start}" in
+    start) start ;;
+    stop) stop ;;
+    status) status ;;
+    restart) stop; sleep 1; start ;;
+    *) echo "Usage: $0 {start|stop|status|restart}"; exit 0 ;;
+esac
+exit 0

@@ -1,0 +1,12 @@
+{
+  ".url": {
+    "env-probe.Application": {
+      "title": "App 环境探测器",
+      "icon": "images/icon_{0}.png",
+      "type": "iframe",
+      "protocol": "http",
+      "port": "28002",
+      "url": "/"
+    }
+  }
+}

@@ -1,0 +1,14 @@
+#!/bin/bash
+# install_callback — env-probe 安装后处理
+set -uo pipefail
+APP_NAME="${TRIM_APPNAME:-env-probe}"
+APP_DIR="${TRIM_APPDEST:-/var/apps/${APP_NAME}}"
+DATA_DIR="${TRIM_PKGVAR:-/vol4/@appdata/${APP_NAME}}"
+LOG="${DATA_DIR}/install.log"
+mkdir -p "${DATA_DIR}" 2>/dev/null || true
+echo "[$(date '+%F %T')] install_callback start" >> "${LOG}"
+# 权限: server.py 需可执行
+chmod +x "${APP_DIR}/server.py" 2>/dev/null || true
+chmod +x "${APP_DIR}/cmd/main" 2>/dev/null || true
+echo "[$(date '+%F %T')] install_callback done" >> "${LOG}"
+exit 0

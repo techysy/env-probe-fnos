@@ -1,0 +1,11 @@
+[
+  {
+    "stepTitle": "App 环境探测器",
+    "items": [
+      {
+        "type": "tips",
+        "helpText": "安装后从桌面或飞牛 iOS/Android App 打开，即可查看当前访问环境的请求特征（Host/UA/转发头）并判断是否移动容器。"
+      }
+    ]
+  }
+]
