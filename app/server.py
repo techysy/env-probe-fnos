@@ -21,7 +21,7 @@ import subprocess
 import urllib.parse
 
 PORT = int(os.environ.get("ENV_PROBE_PORT", "28002"))
-APP_VERSION = os.environ.get("ENV_PROBE_VERSION", "0.1.4")
+APP_VERSION = os.environ.get("ENV_PROBE_VERSION", "0.1.5")
 
 BRAND = "#22c55e"  # 绿色主题
 
@@ -535,6 +535,9 @@ class Handler(http.server.BaseHTTPRequestHandler):
             self.send_response(200)
             self.send_header("Content-Type", "text/html; charset=utf-8")
             self.send_header("Content-Length", str(len(body)))
+            self.send_header("Cache-Control", "no-cache, no-store, must-revalidate")
+            self.send_header("Pragma", "no-cache")
+            self.send_header("Expires", "0")
             self.end_headers()
             self.wfile.write(body)
         elif path == "/api/probe":
