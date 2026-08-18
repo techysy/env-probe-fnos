@@ -1,0 +1,15 @@
+appname               = env-probe
+version               = 0.1.0
+display_name          = App 环境探测器
+desc                  = 识别当前访问环境（桌面/移动容器/FN Connect 域名），展示请求头与容器信息，辅助配置 dsh 信任域
+arch                  = x86_64
+source                = thirdparty
+maintainer            = techysy
+maintainer_url        = https://github.com/techysy/env-probe-fnos
+distributor           = techysy
+distributor_url       = https://github.com/techysy/env-probe-fnos
+desktop_uidir         = ui
+desktop_applaunchname = env-probe.Application
+service_port          = 28002
+ctl_stop              = true
+checkport             = false
