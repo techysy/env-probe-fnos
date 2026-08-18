@@ -171,7 +171,7 @@ PAGE = """<!doctype html>
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>App 环境探测器</title>
 <style>
-:root{--brand:%(BRAND)s;--bg:#0f172a;--card:#1e293b;--fg:#e2e8f0;--muted:#94a3b8;--ok:#22c55e;--warn:#f59e0b}
+:root{--brand:{{BRAND}};--bg:#0f172a;--card:#1e293b;--fg:#e2e8f0;--muted:#94a3b8;--ok:#22c55e;--warn:#f59e0b}
 *{box-sizing:border-box;margin:0;padding:0}
 body{background:var(--bg);color:var(--fg);font:14px/1.6 -apple-system,'PingFang SC',sans-serif;padding:16px;max-width:960px;margin:0 auto}
 h1{font-size:20px;margin:8px 0 4px;display:flex;align-items:center;gap:8px}
@@ -192,7 +192,7 @@ th{color:var(--muted);font-weight:500;width:180px;font-size:12px}
 .note{color:var(--muted);font-size:12px;margin-top:8px}
 </style></head><body>
 <h1>App 环境探测器</h1>
-<div class="sub">v%(VER)s · 打开本页的环境，自动展示请求特征并判断是否移动容器</div>
+<div class="sub">v{{VER}} · 打开本页的环境，自动展示请求特征并判断是否移动容器</div>
 
 <div class="card">
 <h2>当前访问环境</h2>
@@ -285,7 +285,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
     def do_GET(self):
         path = urllib.parse.urlparse(self.path).path
         if path == "/" or path == "":
-            body = (PAGE % {"BRAND": BRAND, "VER": APP_VERSION}).encode()
+            body = PAGE.replace("{{BRAND}}", BRAND).replace("{{VER}}", APP_VERSION).encode()
             self.send_response(200)
             self.send_header("Content-Type", "text/html; charset=utf-8")
             self.send_header("Content-Length", str(len(body)))
