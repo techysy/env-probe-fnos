@@ -21,7 +21,7 @@ import subprocess
 import urllib.parse
 
 PORT = int(os.environ.get("ENV_PROBE_PORT", "28002"))
-APP_VERSION = os.environ.get("ENV_PROBE_VERSION", "0.1.3")
+APP_VERSION = os.environ.get("ENV_PROBE_VERSION", "0.1.4")
 
 BRAND = "#22c55e"  # 绿色主题
 
@@ -276,10 +276,7 @@ td.val{word-break:break-all;max-width:0;width:100%}
 
 <div class="tabs">
 <button class="tab active" onclick="switchTab('env')">环境</button>
-<button class="tab" onclick="switchTab('hdrs')">请求头</button>
-<button class="tab" onclick="switchTab('auth')">登录通道</button>
-<button class="tab" onclick="switchTab('conn')">连通性</button>
-<button class="tab" onclick="switchTab('dns')">DNS·协议</button>
+<button class="tab" onclick="switchTab('net')">网络</button>
 <button class="tab" onclick="switchTab('ctr')">容器</button>
 <button class="tab" onclick="switchTab('hist')">历史</button>
 </div>
@@ -287,22 +284,13 @@ td.val{word-break:break-all;max-width:0;width:100%}
 <div class="pane active" id="pane-env">
 <div class="card"><h2>当前访问环境</h2><div id="env"></div></div>
 <div class="card"><h2>本地持久化存储</h2><div id="store"></div></div>
-</div>
-
-<div class="pane" id="pane-hdrs">
 <div class="card"><h2>请求头 (Request Headers) <button class="btn copybtn" onclick="copyHeaders()">复制</button></h2><table id="hdrs"></table></div>
 </div>
 
-<div class="pane" id="pane-auth">
-<div class="card"><h2>登录验证通道 <button class="btn copybtn" onclick="authProbe()">重测</button></h2><div id="auth"></div></div>
-</div>
-
-<div class="pane" id="pane-conn">
+<div class="pane" id="pane-net">
 <div class="card"><h2>服务/连通性探测 <button class="btn copybtn" onclick="connectivityProbe()">重测</button></h2><div id="conn"></div></div>
-</div>
-
-<div class="pane" id="pane-dns">
 <div class="card"><h2>DNS 解析与协议</h2><div id="dns"></div></div>
+<div class="card"><h2>登录验证通道 <button class="btn copybtn" onclick="authProbe()">重测</button></h2><div id="auth"></div></div>
 </div>
 
 <div class="pane" id="pane-ctr">
