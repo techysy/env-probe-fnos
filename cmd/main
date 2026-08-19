@@ -1,7 +1,7 @@
 #!/bin/bash
 # fn-netdiag — 环境探测器生命周期脚本
 # 运行 app/server.py (Python 零依赖), 监听 28002.
-# v1.0.1
+# v1.0.2
 set -uo pipefail
 
 APP_NAME="${TRIM_APPNAME:-fn-netdiag}"
@@ -29,10 +29,16 @@ start() {
         log "ERROR: server.py not found at ${SERVER_PY}"
         return 1
     fi
-    ENV_PROBE_PORT="${PORT}" ENV_PROBE_VERSION="1.0.1" \
-        nohup python3 "${SERVER_PY}" >> "${LOG}" 2>&1 &
+    # 定位 python3 (App Center 启动环境 PATH 可能不含 /usr/bin, 显式用绝对路径)
+    PY=""
+    for cand in /usr/bin/python3 /usr/local/bin/python3 /opt/venv/bin/python3; do
+        [ -x "$cand" ] && PY="$cand" && break
+    done
+    [ -z "$PY" ] && PY="$(command -v python3 2>/dev/null || echo python3)"
+    ENV_PROBE_PORT="${PORT}" ENV_PROBE_VERSION="1.0.2" \
+        nohup "$PY" "${SERVER_PY}" >> "${LOG}" 2>&1 &
     echo $! > "${PID_FILE}"
-    log "server started (pid $(cat "${PID_FILE}")) :0.0.0.0:${PORT}"
+    log "server started (pid $(cat "${PID_FILE}")) :0.0.0.0:${PORT} (python=$PY)"
     sleep 1
     # 健康检查
     if kill -0 "$(cat "${PID_FILE}")" 2>/dev/null; then

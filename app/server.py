@@ -21,7 +21,7 @@ import subprocess
 import urllib.parse
 
 PORT = int(os.environ.get("ENV_PROBE_PORT", "28002"))
-APP_VERSION = os.environ.get("ENV_PROBE_VERSION", "1.0.1")
+APP_VERSION = os.environ.get("ENV_PROBE_VERSION", "1.0.2")
 
 BRAND = "#22c55e"  # 绿色主题
 

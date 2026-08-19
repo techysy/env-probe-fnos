@@ -1,5 +1,5 @@
 appname               = fn-netdiag
-version               = 1.0.1
+version               = 1.0.2
 display_name          = fnOS 网络诊断
 desc                  = 通用网络环境诊断：请求特征、移动容器识别、连通性、DNS/协议、容器信息，辅助配置 dsh 信任域
 arch                  = all
