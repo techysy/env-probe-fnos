@@ -1,7 +1,7 @@
 {
   ".url": {
     "fn-netdiag.Application": {
-      "title": "App 环境探测器",
+      "title": "fnOS 网络诊断",
       "icon": "images/icon_{0}.png",
       "type": "iframe",
       "protocol": "http",
