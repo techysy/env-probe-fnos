@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.0.1] - 2026-08-19
+
+- **优化**: 容器 Tab 优雅降级（无容器显示提示 / 权限不足友好提示，不再报裸权限错误）
+- **修复**: cmd/main stop() 用 `pkill -f server.py` 会误杀其他应用进程（如 mihomo status_server），改为仅匹配本应用路径
+- **新增**: get_containers 多路径尝试（docker / sudo docker）
+
 ## [1.0.0] - 2026-08-19
 
 - **改名**: `env-probe` → `fn-netdiag`（fnOS 网络诊断），版本从 1.0.0 重新开始

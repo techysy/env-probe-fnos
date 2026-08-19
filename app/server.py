@@ -21,7 +21,7 @@ import subprocess
 import urllib.parse
 
 PORT = int(os.environ.get("ENV_PROBE_PORT", "28002"))
-APP_VERSION = os.environ.get("ENV_PROBE_VERSION", "1.0.0")
+APP_VERSION = os.environ.get("ENV_PROBE_VERSION", "1.0.1")
 
 BRAND = "#22c55e"  # 绿色主题
 
@@ -200,24 +200,42 @@ def diagnose_url(url_or_app):
 
 # ── 容器信息 (docker) ─────────────────────────────────────
 def get_containers():
-    """读取 Docker 容器列表 (名称/镜像/状态/端口/IP)"""
+    """读取 Docker 容器列表 (名称/镜像/状态/端口/IP)
+    多路径尝试: docker → sudo -n docker; 无容器/权限不足时优雅降级"""
+    # 尝试路径
+    candidates = [
+        ["docker", "ps", "-a", "--format", "{{.Names}}|{{.Image}}|{{.Status}}|{{.Ports}}"],
+        ["sudo", "-n", "docker", "ps", "-a", "--format", "{{.Names}}|{{.Image}}|{{.Status}}|{{.Ports}}"],
+    ]
+    for cmd in candidates:
+        try:
+            out = subprocess.run(cmd, capture_output=True, text=True, timeout=10)
+        except FileNotFoundError:
+            continue
+        except Exception:
+            continue
+        if out.returncode == 0:
+            rows = []
+            for line in out.stdout.strip().splitlines():
+                parts = line.split("|")
+                if len(parts) >= 4:
+                    rows.append({"name": parts[0], "image": parts[1], "status": parts[2], "ports": parts[3]})
+            return {"ok": True, "containers": rows, "count": len(rows)}
+        # sudo 失败 / 权限不足, 尝试下一条
+        continue
+    # 全部失败: 判断是否 docker 不可用还是无权限
+    if not _docker_exists():
+        return {"ok": False, "available": False, "error": "docker 不可用", "containers": []}
+    return {"ok": False, "available": True, "error": "无法访问 docker (权限不足)", "containers": []}
+
+def _docker_exists():
     try:
-        out = subprocess.run(
-            ["docker", "ps", "-a", "--format",
-             "{{.Names}}|{{.Image}}|{{.Status}}|{{.Ports}}"],
-            capture_output=True, text=True, timeout=10)
-        if out.returncode != 0:
-            return {"ok": False, "error": out.stderr.strip() or "docker ps failed"}
-        rows = []
-        for line in out.stdout.strip().splitlines():
-            parts = line.split("|")
-            if len(parts) >= 4:
-                rows.append({"name": parts[0], "image": parts[1], "status": parts[2], "ports": parts[3]})
-        return {"ok": True, "containers": rows, "count": len(rows)}
+        subprocess.run(["docker", "--version"], capture_output=True, timeout=5)
+        return True
     except FileNotFoundError:
-        return {"ok": False, "error": "docker 不可用"}
-    except Exception as e:
-        return {"ok": False, "error": str(e)}
+        return False
+    except Exception:
+        return True
 
 # ── HTTP 服务 ─────────────────────────────────────────────
 # 连通性探测: TCP 连通性 + 延迟 (101 到各目标)
@@ -603,14 +621,20 @@ async function load(){
     // 容器
     let c='';
     if(DATA.containers.ok){
-      c+=`<div class="verdict">共 <b>${DATA.containers.count}</b> 个容器</div>`;
-      c+='<table style="word-break:break-all"><tr><th>名称</th><th>镜像</th><th>状态</th><th>端口</th></tr>';
-      DATA.containers.containers.forEach(x=>{
-        c+=`<tr><td>${x.name}</td><td>${x.image}</td><td>${x.status}</td><td>${x.ports}</td></tr>`;
-      });
-      c+='</table>';
+      if(DATA.containers.count===0){
+        c+='<div class="verdict">未发现 Docker 容器（当前为裸机安装，无容器）</div>';
+      }else{
+        c+=`<div class="verdict">共 <b>${DATA.containers.count}</b> 个容器</div>`;
+        c+='<table style="word-break:break-all"><tr><th>名称</th><th>镜像</th><th>状态</th><th>端口</th></tr>';
+        DATA.containers.containers.forEach(x=>{
+          c+=`<tr><td>${x.name}</td><td>${x.image}</td><td>${x.status}</td><td>${x.ports}</td></tr>`;
+        });
+        c+='</table>';
+      }
+    }else if(DATA.containers.available===false){
+      c+='<div class="verdict">本机未安装 Docker（应用为原生安装）</div>';
     }else{
-      c+=`<div class="verdict">${DATA.containers.error||'获取失败'}</div>`;
+      c+=`<div class="verdict">无法读取容器: ${DATA.containers.error||'权限不足'}。可手动查看 \`docker ps -a\`</div>`;
     }
     document.getElementById('ctr').innerHTML=c;
     // 本地持久化存储 + 登录验证通道 + 连通性 + DNS/协议 + 历史

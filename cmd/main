@@ -1,7 +1,7 @@
 #!/bin/bash
 # fn-netdiag — 环境探测器生命周期脚本
 # 运行 app/server.py (Python 零依赖), 监听 28002.
-# v0.1.0
+# v1.0.1
 set -uo pipefail
 
 APP_NAME="${TRIM_APPNAME:-fn-netdiag}"
@@ -29,7 +29,7 @@ start() {
         log "ERROR: server.py not found at ${SERVER_PY}"
         return 1
     fi
-    ENV_PROBE_PORT="${PORT}" ENV_PROBE_VERSION="1.0.0" \
+    ENV_PROBE_PORT="${PORT}" ENV_PROBE_VERSION="1.0.1" \
         nohup python3 "${SERVER_PY}" >> "${LOG}" 2>&1 &
     echo $! > "${PID_FILE}"
     log "server started (pid $(cat "${PID_FILE}")) :0.0.0.0:${PORT}"
@@ -52,8 +52,8 @@ stop() {
         rm -f "${PID_FILE}"
         log "stopped"
     fi
-    # 兜底: 清理残留进程
-    pkill -f "server.py" 2>/dev/null || true
+    # 兜底: 只清理本应用目录下的进程 (避免误杀其他应用如 mihomo status_server)
+    pkill -f "${SERVER_PY}" 2>/dev/null || true
     return 0
 }
 
