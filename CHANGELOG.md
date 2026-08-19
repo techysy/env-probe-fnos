@@ -1,9 +1,11 @@
 # Changelog
 
-## [0.1.7] - 2026-08-19
+## [1.0.0] - 2026-08-19
 
-- **改名**: `env-probe` → `fn-netdiag`（fnOS 网络诊断），更通用、不局限移动端
-- **修复**: `Can't find variable: dnsProbe` 页面加载失败 —— authProbe 函数缺闭合括号 + loadHistory 多一个括号，导致 connectivityProbe/dnsProbe/loadHistory 嵌套在 authProbe 内部不可访问
+- **改名**: `env-probe` → `fn-netdiag`（fnOS 网络诊断），版本从 1.0.0 重新开始
+- **新增**: 应用诊断 Tab —— 枚举 fnOS 已安装应用列表 + 输入网址分析（Host/端口/DNS/可达性/信任域建议）
+- **修复**: `Can't find variable: dnsProbe` 页面加载失败（JS 括号嵌套错误）
+- 页面标题/H1 改为「fnOS 网络诊断」
 
 ## [0.1.6] - 2026-08-19
 

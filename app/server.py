@@ -21,7 +21,7 @@ import subprocess
 import urllib.parse
 
 PORT = int(os.environ.get("ENV_PROBE_PORT", "28002"))
-APP_VERSION = os.environ.get("ENV_PROBE_VERSION", "0.1.7")
+APP_VERSION = os.environ.get("ENV_PROBE_VERSION", "1.0.0")
 
 BRAND = "#22c55e"  # 绿色主题
 
@@ -143,6 +143,60 @@ def suggest_trusted(host):
     if hostname.startswith("dsh."):
         return [hostname, "fnos.net"]
     return [hostname]
+
+# ── fnOS 应用列表 + 按应用/URL 诊断 ───────────────────────
+def list_apps():
+    """枚举 fnOS 已安装应用: /var/apps/<name>/manifest 读 display_name/service_port"""
+    import glob
+    apps = []
+    for manifest_path in glob.glob("/var/apps/*/manifest"):
+        name = os.path.basename(os.path.dirname(manifest_path))
+        display, port, desc = name, "", ""
+        try:
+            for line in open(manifest_path, encoding="utf-8", errors="ignore"):
+                s = line.strip()
+                if s.startswith("display_name") and "=" in s:
+                    display = s.split("=", 1)[1].strip().strip("\"'")
+                elif s.startswith("service_port") and "=" in s:
+                    port = s.split("=", 1)[1].strip()
+                elif s.startswith("desc") and "=" in s:
+                    desc = s.split("=", 1)[1].strip().strip("\"'")
+        except Exception:
+            pass
+        apps.append({"name": name, "display": display, "port": port, "desc": desc})
+    apps.sort(key=lambda a: a["name"])
+    return apps
+
+def diagnose_url(url_or_app):
+    """输入网址或应用名 → 分析 Host/端口, 给出信任域建议 + 探测可达性"""
+    import socket as _socket
+    s = (url_or_app or "").strip()
+    if not s:
+        return {"ok": False, "error": "请输入网址或应用名"}
+    # 解析: 去掉 scheme
+    hostport = s.split("://")[-1].split("/")[0]
+    host = hostport.split(":")[0]
+    port = ""
+    if ":" in hostport:
+        port = hostport.split(":")[1]
+    # 默认端口推断
+    proto = "https" if s.startswith("https://") else ("http" if s.startswith("http://") else "")
+    if not port:
+        port = "443" if proto == "https" else "80"
+    # DNS 解析
+    dns = resolve_dns(host)
+    # 可达性
+    reach = None
+    try:
+        with _socket.create_connection((host, int(port)), timeout=3):
+            reach = True
+    except Exception as e:
+        reach = {"ok": False, "err": str(e)[:60]}
+    trusted = suggest_trusted(host)
+    return {
+        "ok": True, "input": s, "host": host, "port": port, "proto": proto,
+        "dns": dns, "reachable": reach, "trusted": trusted,
+    }
 
 # ── 容器信息 (docker) ─────────────────────────────────────
 def get_containers():
@@ -277,6 +331,7 @@ td.val{word-break:break-all;max-width:0;width:100%}
 <div class="tabs">
 <button class="tab active" onclick="switchTab('env')">环境</button>
 <button class="tab" onclick="switchTab('net')">网络</button>
+<button class="tab" onclick="switchTab('diag')">应用诊断</button>
 <button class="tab" onclick="switchTab('ctr')">容器</button>
 <button class="tab" onclick="switchTab('hist')">历史</button>
 </div>
@@ -291,6 +346,20 @@ td.val{word-break:break-all;max-width:0;width:100%}
 <div class="card"><h2>服务/连通性探测 <button class="btn copybtn" onclick="connectivityProbe()">重测</button></h2><div id="conn"></div></div>
 <div class="card"><h2>DNS 解析与协议</h2><div id="dns"></div></div>
 <div class="card"><h2>登录验证通道 <button class="btn copybtn" onclick="authProbe()">重测</button></h2><div id="auth"></div></div>
+</div>
+
+<div class="pane" id="pane-diag">
+<div class="card"><h2>应用 / URL 诊断</h2>
+<div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap">
+<select id="appSel" style="flex:1;min-width:180px;padding:6px;border:1px solid var(--bd);background:var(--card);color:var(--fg);border-radius:8px;font-size:13px" onchange="appSelChanged()"><option value="">选择 fnOS 应用...</option></select>
+<button class="btn" onclick="diagApp()">诊断</button>
+</div>
+<div style="display:flex;gap:8px;margin-bottom:10px">
+<input id="urlInp" placeholder="或输入网址 https://xxx.fnos.net/ 或 http://host:port" style="flex:1;padding:6px;border:1px solid var(--bd);background:var(--card);color:var(--fg);border-radius:8px;font-size:13px">
+<button class="btn" onclick="diagUrl()">分析</button>
+</div>
+<div id="diag"></div>
+</div>
 </div>
 
 <div class="pane" id="pane-ctr">
@@ -454,6 +523,60 @@ async function loadHistory(){
     el.innerHTML=h;
   }catch(e){ el.innerHTML=`<div class="verdict">加载失败: ${e}</div>`; }
 }
+async function loadApps(){
+  const sel=document.getElementById('appSel');
+  if(!sel) return;
+  try{
+    const r=await fetch('/api/apps'); const d=await r.json();
+    if(!d.ok || !d.apps){ sel.innerHTML='<option value="">应用读取失败</option>'; return; }
+    sel.innerHTML='<option value="">选择 fnOS 应用...</option>';
+    d.apps.forEach(a=>{
+      const label = a.display && a.display!==a.name ? `${a.display} (${a.name})` : a.name;
+      const opt=document.createElement('option'); opt.value=a.name; opt.textContent=label;
+      sel.appendChild(opt);
+    });
+  }catch(e){ sel.innerHTML='<option value="">应用加载失败</option>'; }
+}
+function appSelChanged(){
+  const sel=document.getElementById('appSel');
+  const url=document.getElementById('urlInp');
+  if(sel && url && sel.value) url.value=sel.value;  // 选中应用填入 URL 输入框
+}
+async function renderDiag(d){
+  const el=document.getElementById('diag');
+  if(!el) return;
+  if(!d.ok){ el.innerHTML=`<div class="verdict">${d.error||'失败'}</div>`; return; }
+  let h='';
+  h+=`<div class="verdict">输入: <b>${d.input}</b></div>`;
+  h+=`<div class="verdict">Host: <b>${d.host}</b> · 端口: <b>${d.port}</b>${d.proto?' · 协议: '+d.proto:''}</div>`;
+  if(d.dns && d.dns.ips) h+=`<div class="verdict">解析 IP (${d.dns.count}): ${d.dns.ips.join(', ')}</div>`;
+  else if(d.dns && d.dns.error) h+=`<div class="verdict">DNS 解析失败: ${d.dns.error}</div>`;
+  h+=`<div class="verdict">可达性: ${d.reachable===true?'<span class="badge ok">可达</span>':(d.reachable?'<span class="badge warn">不可达</span>':'未知')}</div>`;
+  h+='<div class="sec" style="margin-top:10px">信任域建议 (trusted_hosts.conf) <button class="btn copybtn" onclick="copyText(d.trusted.join(\\'\\n\\'))">复制</button></div>';
+  h+='<div class="sug">'+d.trusted.join('\\n')+'</div>';
+  el.innerHTML=h;
+}
+async function diagApp(){
+  const sel=document.getElementById('appSel');
+  const val=sel ? sel.value : '';
+  if(!val){ flash('请先选择应用'); return; }
+  await doDiag(val);
+}
+async function diagUrl(){
+  const url=document.getElementById('urlInp');
+  const val=url ? url.value.trim() : '';
+  if(!val){ flash('请输入网址'); return; }
+  await doDiag(val);
+}
+async function doDiag(q){
+  const el=document.getElementById('diag');
+  if(el) el.innerHTML='<div class="loading">诊断中...</div>';
+  try{
+    const r=await fetch('/api/diagnose?q='+encodeURIComponent(q));
+    const d=await r.json();
+    renderDiag(d);
+  }catch(e){ if(el) el.innerHTML=`<div class="verdict">诊断失败: ${e}</div>`; }
+}
 async function load(){
   try{
     const r=await fetch('/api/probe'); DATA=await r.json();
@@ -496,6 +619,7 @@ async function load(){
     dnsProbe();
     loadHistory();
     connectivityProbe();
+    loadApps();
   }catch(e){
     document.getElementById('env').innerHTML='<div class="verdict">加载失败: '+e+'</div>';
   }
@@ -569,6 +693,12 @@ class Handler(http.server.BaseHTTPRequestHandler):
             self._json({"ok": True, "results": probe_connectivity(), "ts": __import__("time").strftime("%F %T")})
         elif path == "/api/history":
             self._json({"ok": True, "history": load_history()})
+        elif path == "/api/apps":
+            self._json({"ok": True, "apps": list_apps()})
+        elif path == "/api/diagnose":
+            q = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
+            target = (q.get("q") or q.get("url") or [""])[0]
+            self._json(diagnose_url(target))
         elif path == "/health":
             self._json({"ok": True, "version": APP_VERSION})
         else:
