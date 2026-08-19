@@ -21,7 +21,7 @@ import subprocess
 import urllib.parse
 
 PORT = int(os.environ.get("ENV_PROBE_PORT", "28002"))
-APP_VERSION = os.environ.get("ENV_PROBE_VERSION", "0.1.6")
+APP_VERSION = os.environ.get("ENV_PROBE_VERSION", "0.1.7")
 
 BRAND = "#22c55e"  # 绿色主题
 
@@ -387,6 +387,7 @@ async function authProbe(){
       (ok?'':'<div class="verdict" style="color:var(--warn)">若此处异常, 登录后跳转可能失败 (类似 9Router 无法登录跳转)</div>');
   }catch(e){
     el.innerHTML=`<span class="badge warn">跳转通道: 异常</span><div class="verdict">${String(e)}</div><div class="verdict" style="color:var(--warn)">webview 可能拦截了重定向, 登录跳转会失败</div>`;
+  }
 }
 async function connectivityProbe(){
   const el=document.getElementById('conn');
@@ -452,7 +453,6 @@ async function loadHistory(){
     h+='</table>';
     el.innerHTML=h;
   }catch(e){ el.innerHTML=`<div class="verdict">加载失败: ${e}</div>`; }
-}
 }
 async function load(){
   try{
