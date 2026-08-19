@@ -1,6 +1,7 @@
 # Changelog
 
 ## [1.0.2] - 2026-08-19
+- **修复**: manifest `arch` → `platform=all`（对齐 fnOS 新规范）
 
 - **修复**: 安装/重启后服务不自启动 —— App Center 启动环境 PATH 不含 python3，cmd/main 用裸 `python3` 找不到。改为定位绝对路径 `/usr/bin/python3`（受限 PATH 也能启动）
 
