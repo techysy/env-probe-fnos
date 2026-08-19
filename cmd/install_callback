@@ -1,7 +1,7 @@
 #!/bin/bash
-# install_callback — env-probe 安装后处理
+# install_callback — fn-netdiag 安装后处理
 set -uo pipefail
-APP_NAME="${TRIM_APPNAME:-env-probe}"
+APP_NAME="${TRIM_APPNAME:-fn-netdiag}"
 APP_DIR="${TRIM_APPDEST:-/var/apps/${APP_NAME}}"
 DATA_DIR="${TRIM_PKGVAR:-/vol4/@appdata/${APP_NAME}}"
 LOG="${DATA_DIR}/install.log"

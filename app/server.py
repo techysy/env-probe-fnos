@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""env-probe — 环境探测器 (零依赖 stdlib http.server)
+"""fn-netdiag — fnOS 网络诊断 (零依赖 stdlib http.server)
 
 在任意环境打开本应用，展示当前访问环境的完整请求特征：
   - 请求头 (Host / User-Agent / Origin / Referer / X-Forwarded-* / X-Real-IP ...)
@@ -228,7 +228,7 @@ def load_history(limit=20):
 PAGE = """<!doctype html>
 <html lang="zh-CN"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>App 环境探测器</title>
+<title>fnOS 网络诊断</title>
 <style>
 :root{--brand:{{BRAND}};--bg:#f1f5f9;--card:#ffffff;--fg:#0f172a;--muted:#64748b;--ok:#16a34a;--warn:#d97706;--bd:#e2e8f0}
 html[data-theme="dark"]{--bg:#0f172a;--card:#1e293b;--fg:#e2e8f0;--muted:#94a3b8;--ok:#22c55e;--warn:#f59e0b;--bd:#334155}
@@ -266,7 +266,7 @@ td.val{word-break:break-all;max-width:0;width:100%}
 .badge{display:inline-block;padding:2px 10px;border-radius:20px;font-size:12px;margin:2px 4px 2px 0}
 </style></head><body>
 <div class="top">
-<h1>App 环境探测器</h1>
+<h1>fnOS 网络诊断</h1>
 <div>
 <button class="btn" onclick="copyAll()">复制全部</button>
 <button class="btn" id="themeBtn" onclick="toggleTheme()">🌙</button>

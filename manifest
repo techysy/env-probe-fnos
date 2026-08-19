@@ -1,11 +1,11 @@
-appname               = env-probe
+appname               = fn-netdiag
 version               = 0.1.7
-display_name          = App 环境探测器
-desc                  = 识别当前访问环境（桌面/移动容器/FN Connect 域名），展示请求头与容器信息，辅助配置 dsh 信任域
-arch                  = x86_64
+display_name          = fnOS 网络诊断
+desc                  = 通用网络环境诊断：请求特征、移动容器识别、连通性、DNS/协议、容器信息，辅助配置 dsh 信任域
+arch                  = all
 source                = thirdparty
 maintainer            = techysy
-maintainer_url        = https://github.com/techysy/env-probe-fnos
+maintainer_url        = https://github.com/techysy/fn-netdiag-fnos
 distributor           = techysy
 distributor_url       = https://github.com/techysy/env-probe-fnos
 desktop_uidir         = ui

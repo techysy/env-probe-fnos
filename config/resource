@@ -3,10 +3,10 @@
     {
         "shares": [
             {
-                "name": "env-probe",
+                "name": "fn-netdiag",
                 "permission":
                 {
-                    "rw": ["env-probe"]
+                    "rw": ["fn-netdiag"]
                 }
             }
         ]

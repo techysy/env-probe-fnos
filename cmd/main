@@ -1,10 +1,10 @@
 #!/bin/bash
-# env-probe — 环境探测器生命周期脚本
+# fn-netdiag — 环境探测器生命周期脚本
 # 运行 app/server.py (Python 零依赖), 监听 28002.
 # v0.1.0
 set -uo pipefail
 
-APP_NAME="${TRIM_APPNAME:-env-probe}"
+APP_NAME="${TRIM_APPNAME:-fn-netdiag}"
 APP_DIR="${TRIM_APPDEST:-/var/apps/${APP_NAME}}"
 DATA_DIR="${TRIM_PKGVAR:-/vol4/@appdata/${APP_NAME}}"
 SERVER_PY="${APP_DIR}/server.py"

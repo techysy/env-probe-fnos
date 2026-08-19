@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""生成 env-probe 图标 — 绿色雷达/放大镜主题, 对齐 fnOS 圆角 18.75%"""
+"""生成 fn-netdiag 图标 — 绿色雷达/放大镜主题, 对齐 fnOS 圆角 18.75%"""
 from PIL import Image, ImageDraw
 import os
 
