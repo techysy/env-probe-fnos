@@ -78,9 +78,10 @@
 
 ## 🔧 技术栈
 
-- 零依赖 Python 标准库（`http.server`），单文件后端
+- **依赖**：fnOS 系统自带 Python 3（`/usr/bin/python3`，实测 3.11.2），非依赖应用，manifest 无需声明
+- 零第三方依赖 Python 标准库（`http.server`），单文件后端
 - 内嵌 HTML/CSS/JS 前端，无构建步骤
-- 端口 `28002`，生命周期由 `cmd/main` 管理
+- 端口 `28002`，生命周期由 `cmd/main` 管理（启动时定位 python3 绝对路径，适配 App Center 受限 PATH）
 
 ---
 
