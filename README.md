@@ -18,7 +18,7 @@
 
 ### 🔍 环境识别
 - 展示当前访问环境的**完整请求头**（Host / User-Agent / 转发头 / 来源 IP）
-- 识别 **移动容器**（飞牛 iOS/Android App 内嵌 webview，Host=`office.app.5ddd.com:port`）
+- 识别 **移动容器**（飞牛 App 内嵌 webview，UA 特征 + FN Connect 域名动态判断）
 - 识别 **FN Connect 域名**（`*.fnos.net`）与局域网直连
 - 展示当前访问 URL 与 **Docker 容器信息**
 

@@ -383,7 +383,7 @@ td.val{word-break:break-all;max-width:0;width:100%}
 <button class="btn" id="themeBtn" onclick="toggleTheme()">🌙</button>
 </div>
 </div>
-<div class="sub">v{{VER}} · 打开本页的环境，自动展示请求特征并判断是否移动容器</div>
+<div class="sub">v{{VER}} · 展示当前访问环境的请求特征与网络连通性</div>
 
 <div class="tabs">
 <button class="tab active" onclick="switchTab('env')">环境</button>
@@ -427,7 +427,7 @@ td.val{word-break:break-all;max-width:0;width:100%}
 <div class="card"><h2>历史快照</h2><div id="hist"></div></div>
 </div>
 
-<div class="note">提示：用飞牛 iOS/Android App 打开本应用，可看到移动容器的真实 Host/UA/转发头，据此配置 dsh 信任域。</div>
+<div class="note">提示：用飞牛 App / 外网 FN Connect 访问本应用时，页面会自动展示实际访问域名、UA 与转发头，可据此配置 dsh 等应用的信任域。</div>
 
 <script>
 let DATA=null;
