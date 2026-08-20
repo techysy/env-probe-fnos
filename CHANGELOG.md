@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.1.0] - 2026-08-20
+
+- **新增**: 连通性探测增加局域网项 — 本机局域网 IP 上的 dsh/9Router/mihomo + 默认网关连通性（原来只测本机 127.0.0.1）
+- **修复**: 移除移动容器固定域名 `office.app.5ddd.com`（实测不可靠/已废弃），改为 UA 特征 + FN Connect 域名动态判断
+- **修复**: 版本号不再硬编码 — cmd/main 从 manifest 动态读取（兼容 /var/apps/<app>/manifest 标准位置），server.py 用 env 传入
+- **文档**: 更新前端副标题、提示文案与 README 中历史移动容器表述
+
+
 ## [1.0.2] - 2026-08-19
 - **修复**: manifest `arch` → `platform=all`（对齐 fnOS 新规范）
 
