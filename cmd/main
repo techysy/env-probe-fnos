@@ -12,8 +12,14 @@ PORT="${ENV_PROBE_PORT:-28002}"
 LOG="${DATA_DIR}/app.log"
 PID_FILE="${DATA_DIR}/server.pid"
 # 版本号: 从 manifest 动态读取, 避免硬编码与 manifest 不一致
-APP_VER="$(grep -E '^version' "${APP_DIR}/manifest" 2>/dev/null | awk '{print $3}')"
-[ -z "${APP_VER}" ] && APP_VER="$(grep -E '^version' "${APP_DIR}/target/manifest" 2>/dev/null | awk '{print $3}')"
+# manifest 在 /var/apps/<app>/manifest (fnOS 标准), 或在 APP_DIR/target/manifest
+APP_VER=""
+for mf in "/var/apps/${APP_NAME}/manifest" "${APP_DIR}/manifest" "${APP_DIR}/target/manifest"; do
+    if [ -f "$mf" ]; then
+        APP_VER="$(grep -E '^version' "$mf" 2>/dev/null | awk '{print $3}')"
+        [ -n "$APP_VER" ] && break
+    fi
+done
 [ -z "${APP_VER}" ] && APP_VER="1.0.0"
 
 # 兼容 fnOS 各种 TRIM_APPDEST: 实际文件可能在 APP_DIR 或其 target 子目录
