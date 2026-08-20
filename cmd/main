@@ -11,6 +11,10 @@ SERVER_PY="${APP_DIR}/server.py"
 PORT="${ENV_PROBE_PORT:-28002}"
 LOG="${DATA_DIR}/app.log"
 PID_FILE="${DATA_DIR}/server.pid"
+# 版本号: 从 manifest 动态读取, 避免硬编码与 manifest 不一致
+APP_VER="$(grep -E '^version' "${APP_DIR}/manifest" 2>/dev/null | awk '{print $3}')"
+[ -z "${APP_VER}" ] && APP_VER="$(grep -E '^version' "${APP_DIR}/target/manifest" 2>/dev/null | awk '{print $3}')"
+[ -z "${APP_VER}" ] && APP_VER="1.0.0"
 
 # 兼容 fnOS 各种 TRIM_APPDEST: 实际文件可能在 APP_DIR 或其 target 子目录
 if [ ! -f "${SERVER_PY}" ] && [ -f "${APP_DIR}/target/server.py" ]; then
@@ -35,7 +39,7 @@ start() {
         [ -x "$cand" ] && PY="$cand" && break
     done
     [ -z "$PY" ] && PY="$(command -v python3 2>/dev/null || echo python3)"
-    ENV_PROBE_PORT="${PORT}" ENV_PROBE_VERSION="1.0.2" \
+    ENV_PROBE_PORT="${PORT}" ENV_PROBE_VERSION="${APP_VER}" \
         nohup "$PY" "${SERVER_PY}" >> "${LOG}" 2>&1 &
     echo $! > "${PID_FILE}"
     log "server started (pid $(cat "${PID_FILE}")) :0.0.0.0:${PORT} (python=$PY)"

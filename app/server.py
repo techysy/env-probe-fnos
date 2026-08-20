@@ -21,7 +21,7 @@ import subprocess
 import urllib.parse
 
 PORT = int(os.environ.get("ENV_PROBE_PORT", "28002"))
-APP_VERSION = os.environ.get("ENV_PROBE_VERSION", "1.0.2")
+APP_VERSION = os.environ.get("ENV_PROBE_VERSION", "dev")
 
 BRAND = "#22c55e"  # 绿色主题
 
@@ -57,10 +57,9 @@ def get_lan_ip():
 LAN_IP = get_lan_ip()
 
 # ── 环境判断 ──────────────────────────────────────────────
-# 移动容器特征: 飞牛 iOS/Android App 内嵌 webview 打开应用时
-#   Host = office.app.5ddd.com:<动态端口>  (如 http://office.app.5ddd.com:52575/v1)
-MOBILE_CONTAINER_HOST = "office.app.5ddd.com"
-
+# 移动容器判定不再依赖写死的固定域名 (office.app.5ddd.com 曾为猜测值, 实测不可靠/已废弃).
+# 改为基于 UA 特征 + FN Connect 域名 (fnos.net) 动态判断: 移动 App 内嵌 webview 通过
+# FN Connect 子域名访问时, Host 是每个用户/设备不同的, 不能靠写死的域名匹配.
 def detect_environment(headers, host, client_ip):
     """根据请求头判断访问环境"""
     ua = headers.get("user-agent", "")
@@ -70,19 +69,14 @@ def detect_environment(headers, host, client_ip):
     env = {"kind": "unknown", "label": "未知环境", "mobile_container": False, "fn_domain": False,
            "mobile_url": ""}
 
-    # 0. 移动容器: Host = office.app.5ddd.com[:port] (飞牛移动 App 内嵌 webview)
-    if host_l.startswith(MOBILE_CONTAINER_HOST):
-        env["mobile_container"] = True
-        env["kind"] = "mobile-container"
-        env["label"] = "移动容器 (飞牛 iOS/Android App)"
-        # 完整访问地址
-        proto = "https" if headers.get("x-forwarded-proto", "") == "https" else "http"
-        env["mobile_url"] = f"{proto}://{host}/"
-        verdicts.append(f"移动容器域名: {host}")
-        verdicts.append(f"完整访问地址: {env['mobile_url']}")
-        verdicts.append("→ 配置 dsh 信任域需加: office.app.5ddd.com")
+    # 0. 是否 FN Connect 域名 (移动 App / 外网访问通常经此)
+    is_fn_domain = host_l.endswith(".fnos.net") or host_l == "fnos.net"
+    if is_fn_domain:
+        env["fn_domain"] = True
+        env["label"] = "FN Connect 域名"
+        verdicts.append(f"FN Connect 域名: {host}")
 
-    # 1. 是否移动容器 / 飞牛移动 App (UA 特征)
+    # 1. 移动容器 / 飞牛移动 App (UA 特征 + 移动端)
     mobile_ua_marks = [
         ("fnos", "飞牛 fnOS"),
         ("fnconnect", "FN Connect"),
@@ -96,32 +90,36 @@ def detect_environment(headers, host, client_ip):
             mobile_found.append(name)
     if "mobile" in ua_l or "iphone" in ua_l or "ipad" in ua_l or "android" in ua_l or "cfnetwork" in ua_l:
         mobile_found.append("移动端 webview")
-    if mobile_found and not env["mobile_container"]:
+
+    # 移动容器 = 飞牛 App 内嵌 webview 特征 (UA 含飞牛/移动端) 或经 FN Connect 域名访问
+    is_mobile_ua = bool(mobile_found)
+    if is_mobile_ua or (is_fn_domain and client_ip not in ("127.0.0.1", "::1")):
         env["mobile_container"] = True
-        env["kind"] = "mobile"
-        env["label"] = "移动端"
-        verdicts.append(f"移动端 UA: {'+'.join(set(mobile_found))}")
-    elif not env["mobile_container"]:
-        # 2. 桌面浏览器
+        env["kind"] = "mobile-container" if is_mobile_ua else "mobile"
+        env["label"] = f"移动容器 (飞牛 App 内嵌 webview)" if is_mobile_ua else f"移动端"
+        if is_mobile_ua:
+            verdicts.append(f"移动端 UA: {'+'.join(set(mobile_found))}")
+        # 完整访问地址 (动态 Host, 不写死域名)
+        proto = "https" if headers.get("x-forwarded-proto", "") == "https" else "http"
+        env["mobile_url"] = f"{proto}://{host}/"
+        verdicts.append(f"移动容器访问地址: {env['mobile_url']}")
+        verdicts.append("→ 配置 dsh 信任域, 建议加当前访问域名 (FN Connect 子域名, 每个设备不同)")
+
+    # 2. 桌面浏览器 (非移动)
+    if not env["mobile_container"]:
         if any(b in ua_l for b in ("chrome", "safari", "firefox", "edge", "webkit", "gecko")):
             env["kind"] = "desktop"
             env["label"] = "桌面浏览器"
             verdicts.append("桌面浏览器")
 
-    # 3. 是否 FN Connect 域名
-    if host_l.endswith(".fnos.net") or host_l == "fnos.net":
-        env["fn_domain"] = True
-        env["label"] = f"{env['label']} · FN Connect 域名"
-        verdicts.append(f"FN Connect 域名: {host}")
-
-    # 4. 转发头 (统一网关/FN Connect 反向代理通常带)
+    # 3. 转发头 (统一网关/FN Connect 反向代理通常带)
     fwd_for = headers.get("x-forwarded-for", "")
     xr_ip = headers.get("x-real-ip", "")
     fwd_host = headers.get("x-forwarded-host", "")
     if fwd_for or xr_ip or fwd_host:
         verdicts.append(f"存在反向代理转发头 (X-Forwarded-For: {fwd_for or '-'} / X-Real-IP: {xr_ip or '-'} / X-Forwarded-Host: {fwd_host or '-'})")
 
-    # 5. 是否局域网 IP
+    # 4. 是否局域网 IP
     if env["kind"] == "unknown" and (client_ip.startswith("192.168.") or client_ip.startswith("10.") or client_ip.startswith("172.")):
         env["kind"] = "lan"
         env["label"] = "局域网直连"
@@ -135,13 +133,14 @@ def suggest_trusted(host):
     if not host:
         return []
     hostname = host.split(":")[0]
-    # 移动容器: office.app.5ddd.com (飞牛移动 App 内嵌)
-    if hostname == MOBILE_CONTAINER_HOST:
-        return [MOBILE_CONTAINER_HOST, "*.fnos.net", "fnos.net"]
+    # FN Connect 域名: 给出当前访问域名 + fnos.net
     if hostname.endswith(".fnos.net") or hostname == "fnos.net":
         return [hostname, "fnos.net"]
     if hostname.startswith("dsh."):
         return [hostname, "fnos.net"]
+    # 本机回环/局域网: 直连无需信任域
+    if hostname in ("127.0.0.1", "localhost", "::1"):
+        return []
     return [hostname]
 
 # ── fnOS 应用列表 + 按应用/URL 诊断 ───────────────────────
@@ -238,28 +237,68 @@ def _docker_exists():
         return True
 
 # ── HTTP 服务 ─────────────────────────────────────────────
-# 连通性探测: TCP 连通性 + 延迟 (101 到各目标)
-def probe_connectivity():
+# 连通性探测: TCP 连通性 + 延迟 (本机服务 + 局域网服务 + 外网)
+def _probe_one(name, host, port):
     import socket
     import time
-    targets = [
+    t0 = time.time()
+    try:
+        with socket.create_connection((host, port), timeout=3):
+            ms = int((time.time() - t0) * 1000)
+            return {"name": name, "host": host, "port": port, "ok": True, "ms": ms}
+    except Exception as e:
+        return {"name": name, "host": host, "port": port, "ok": False, "ms": None,
+                "err": str(e)[:50]}
+
+
+def _lan_gateway():
+    """从本机路由表提取默认网关 IP (Linux /proc/net/route)."""
+    try:
+        with open("/proc/net/route", "r") as f:
+            for line in f:
+                parts = line.split()
+                if len(parts) >= 3 and parts[1] == "00000000" and parts[2] != "00000000":
+                    gw = int(parts[2], 16)
+                    return f"{(gw >> 0) & 0xFF}.{(gw >> 8) & 0xFF}.{(gw >> 16) & 0xFF}.{(gw >> 24) & 0xFF}"
+    except OSError:
+        pass
+    return None
+
+
+def probe_connectivity():
+    """本机 + 局域网 + 外网连通性探测.
+
+    - 本机 (127.0.0.1): dsh / 9Router / mihomo
+    - 局域网 (LAN_IP): 同端口, 验证局域网 IP 上的服务可被其他设备访问; 网关连通性
+    - 外网: GitHub / DeepSeek / FN Connect
+    """
+    import socket
+    # 本机服务 (回环)
+    local_targets = [
         ("dsh", "127.0.0.1", 28000),
         ("9Router", "127.0.0.1", 20128),
         ("mihomo", "127.0.0.1", 9090),
+    ]
+    # 局域网服务 (LAN_IP, 验证可被局域网内其他设备访问)
+    lan_targets = []
+    lan_ip = get_lan_ip()
+    if lan_ip != "127.0.0.1":
+        for name, _, port in local_targets:
+            lan_targets.append((f"{name} (局域网)", lan_ip, port))
+    # 网关连通性
+    gw = _lan_gateway()
+    if gw:
+        lan_targets.append(("网关", gw, 443))
+    # 外网
+    wan_targets = [
         ("GitHub API", "api.github.com", 443),
         ("DeepSeek API", "api.deepseek.com", 443),
         ("FN Connect", "fnos.net", 443),
     ]
+
     results = []
-    for name, host, port in targets:
-        t0 = time.time()
-        try:
-            with socket.create_connection((host, port), timeout=3):
-                ms = int((time.time() - t0) * 1000)
-                results.append({"name": name, "host": host, "port": port, "ok": True, "ms": ms})
-        except Exception as e:
-            results.append({"name": name, "host": host, "port": port, "ok": False, "ms": None,
-                            "err": str(e)[:50]})
+    for name, host, port in local_targets + lan_targets + wan_targets:
+        results.append(_probe_one(name, host, port))
     return results
 
 # DNS 解析: 当前访问域名解析到哪些 IP
