@@ -89,6 +89,7 @@
 
 - [CHANGELOG.md](CHANGELOG.md) — 更新日志
 - [v1.1.0 改动与排障记录](docs/v1.1.0-changes-and-troubleshooting.md) — 局域网探测、移动容器动态判断、install-fpk 排障坑
+- [手动 systemd 与应用中心冲突](docs/systemd-conflict-upgrade-old-version.md) — 升级后前端仍旧版的根因排查
 
 ---
 
