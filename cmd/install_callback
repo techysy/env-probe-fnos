@@ -12,5 +12,22 @@ chmod +x "${APP_DIR}/server.py" 2>/dev/null || true
 chmod +x "${APP_DIR}/cmd/main" 2>/dev/null || true
 # 数据目录属主交给包用户 (fnOS run-as package), 否则服务以包用户启动时无法写 pid/log
 chown -R "${APP_NAME}:${APP_NAME}" "${DATA_DIR}" 2>/dev/null || true
+
+# 主动拉起服务 (fnOS App Center 对 iframe 应用自动 start 有时不生效, 这里保证装完即用)
+# cmd/main 实际位于 /var/apps/<app>/cmd/main (fnOS 把脚本放 /var/apps, APP_DIR 可能指向 @appcenter)
+MAIN_SCRIPT=""
+for cand in "/var/apps/${APP_NAME}/cmd/main" "${APP_DIR}/cmd/main" "${APP_DIR}/target/cmd/main"; do
+    [ -f "$cand" ] && MAIN_SCRIPT="$cand" && break
+done
+# 延迟后台启动, 避免阻塞 install 流程
+(
+    sleep 2
+    if [ -n "${MAIN_SCRIPT}" ]; then
+        bash "${MAIN_SCRIPT}" start >> "${LOG}" 2>&1
+    else
+        echo "[$(date '+%F %T')] ERROR: cmd/main not found" >> "${LOG}"
+    fi
+) &
+echo "[$(date '+%F %T')] server start triggered (main=${MAIN_SCRIPT})" >> "${LOG}"
 echo "[$(date '+%F %T')] install_callback done" >> "${LOG}"
 exit 0
